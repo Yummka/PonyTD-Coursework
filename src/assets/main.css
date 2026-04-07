@@ -1,0 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Press Start 2P', cursive;
+  background-color: #1a1a2e; /* Темный, но глубокий фиолетовый */
+  color: white;
+  font-size: 12px;
+}
+
+/* Пиксельные картинки должны быть четкими */
+img {
+  image-rendering: pixelated;
+}
+
+/* Стили для скроллбара (розовый) */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #2d1b33; }
+::-webkit-scrollbar-thumb { background: #ec4899; border-radius: 10px; }
