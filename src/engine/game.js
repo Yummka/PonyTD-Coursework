@@ -15,6 +15,7 @@ export default class Game {
         this.canvas = canvasElement;
         this.ctx = this.canvas.getContext('2d');
         this.store = store; // Сохраняем ссылку на стор Vue
+        
 
         this.originalWidth = originalWidth;
         this.originalHeight = originalHeight;
@@ -127,26 +128,30 @@ export default class Game {
             return true;
         });
 
-         // --- ПРОВЕРКА ПОБЕДЫ (Исправлено) ---
+    // В game.js внутри метода update()
     const totalWavesForLevel = LEVELS_CONFIG[this.currentLevel].length;
-    
+
     if (this.waveInProgress && this.allEnemiesScheduled && this.enemies.length === 0) {
         this.waveInProgress = false;
-        console.log(`Волна ${this.wave} из ${totalWavesForLevel} завершена`);
 
         if (this.wave >= totalWavesForLevel) {
-            this.isRunning = false;
-            setTimeout(() => {
-                this.store.showPopup({
-                    type: 'win',
-                    title: 'УРОВЕНЬ ПРОЙДЕН!',
-                    text: `Отличная работа! Вы защитили этот сектор.<br>Золото: ${this.money} | Жизни: ${this.lives}`,
-                    imgs: ['ЛунаСтоит', 'Флат_стоит']
-                });
-            }, 500);
+            this.isRunning = false; 
+            
+            // Вызываем сохранение через ссылку на стор
+            this.store.saveGameResult({
+                money: this.money,
+                lives: this.lives,
+                wave: this.wave
+            });
+
+            this.store.showPopup({
+                type: 'win',
+                title: 'УРОВЕНЬ ПРОЙДЕН!',
+                text: `Великолепно! Ты защитила Эквестрию за ${this.store.gameTime} сек.`,
+                imgs: ['ЛунаСтоит', 'Флат_стоит']
+            });
         }
     }
-
         // 4. Проверка поражения
         if (this.lives <= 0 && this.wave > 0) {
             this.isRunning = false;
@@ -157,6 +162,7 @@ export default class Game {
                 color: 'text-red-500'
             });
         }
+        
     }
     
     draw() {
@@ -192,6 +198,7 @@ export default class Game {
     startLevel(levelNumber) {
         this.currentLevel = levelNumber;
         this.stopMusic();
+        this.store.startTime = Date.now();
 
         if (levelNumber === 6) {
             this.currentRawPath = pathLevel6;
@@ -235,11 +242,16 @@ export default class Game {
     }
 
     stop() {
-        this.isRunning = false;
-        if (this.animationId) cancelAnimationFrame(this.animationId);
-        this.spawnTimeouts.forEach(t => clearTimeout(t));
-        this.stopMusic();
+    this.isRunning = false;
+    // Останавливаем анимацию
+    if (this.animationId) {
+        cancelAnimationFrame(this.animationId);
     }
+    // Очищаем все таймеры появления врагов
+    this.spawnTimeouts.forEach(t => clearTimeout(t));
+    this.spawnTimeouts = [];
+    this.stopMusic();
+}
 
     startWave() {
         if (this.waveInProgress || !this.isRunning) return;

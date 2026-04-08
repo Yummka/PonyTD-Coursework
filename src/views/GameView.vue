@@ -12,35 +12,42 @@ const canvasRef = ref(null);
 const isLevelModalOpen = ref(true); 
 let gameInstance = null;
 
-// --- ОБНОВЛЕННЫЙ СЮЖЕТ И ОПИСАНИЯ ПОНИ ---
+const exitToMenu = () => {
+  console.log("Выход в меню...");
+  gameInstance?.stop(); // Это важно, чтобы убить игровой цикл
+  router.push('/'); 
+};
+
 const introContent = {
   2: { 
     title: "ФЛАТТЕРШАЙ ПРИСОЕДИНЯЕТСЯ!", 
     img: "Флат_стоит", 
     color: "text-yellow-300", 
-    text: "Понивилль в опасности! Флаттершай не любит драться, но её добрый взгляд может замедлить любого врага. <br><br>Механика: Не наносит урона, но значительно снижает скорость врагов в радиусе действия." 
+    text: "Понивилль в опасности! Флаттершай не любит драться, но её добрый взгляд может <b>замедлить</b> любого врага. <br><br><b>Механика:</b> Не наносит урона, но значительно снижает скорость врагов." 
   },
   3: { 
-    title: "СТИЛЬ И СКОРОСТЬ!", // Новое название
+    title: "СТИЛЬ И СКОРОСТЬ!", 
     imgs: ["РадугаСтоит", "РаритиСтоит"],
     color: "text-cyan-300", 
-    text: "Радуга Дэш и Рэрити спешат на помощь! Радуга: Патрулирует небо между двумя точками, нанося урон всем, над кем пролетает. Рэрити: Дива-снайпер. Бьет редко, но очень больно. Следите за шкалой драмы — когда она заполнится, Рэрити оглушит всех вокруг!" 
+    text: "Радуга Дэш и Рэрити спешат на помощь! <br><br><b>Радуга:</b> Патрулирует небо между точками, нанося урон. <br><b>Рэрити:</b> Дива-снайпер. Бьет редко, но очень больно!" 
   },
   4: { 
     title: "ВЕЧНАЯ НОЧЬ НАЙТМЕР МУН!", 
-    text: "Тьма окутала Эквестрию... Принцесса Луна пала под властью теней и превратилась в Найтмер Мун! Враги стали коварнее, а свет магии тускнеет. Выстойте в этой битве, чтобы вернуть принцессу к свету!" 
+    img: null, // УБРАЛИ ЛУНУ
+    color: "text-indigo-400", 
+    text: "Тьма окутала Эквестрию... Принцесса Луна превратилась в <b>Найтмер Мун</b>! Выстойте в этой битве, чтобы вернуть принцессу к свету!" 
   },
   5: { 
     title: "ВОЗВРАЩЕНИЕ ПРИНЦЕССЫ!", 
     img: "ЛунаСтоит", 
     color: "text-blue-300", 
-    text: "Магия дружбы победила! Луна снова с нами. Механика Луны: Это мощная способность. За золото Луна обрушивает на поле боя звездный гнев, нанося огромный урон и оглушая всех врагов на карте." 
+    text: "Магия дружбы победила! <br><br><b>Механика Луны:</b> За золото Луна обрушивает звездный гнев на всё поле боя!" 
   },
   6: { 
     title: "КРИСТАЛЬНЫЙ ФИНАЛ!", 
     img: "ДёрпиСтоит", 
     color: "text-pink-300", 
-    text: "Король Сомбра вернулся! Дёрпи хочет помочь и принесла маффины! Механика Дёрпи: Она кидает маффины в ваших пони, давая им случайный бафф к урону. Но будьте осторожны — Дёрпи иногда промахивается и может случайно усилить врага!" 
+    text: "Дёрпи хочет помочь и принесла маффины! <br><br><b>Механика Дёрпи:</b> Кидает маффины, давая <b>бафф к урону</b>. Но она может промахнуться и усилить врага!" 
   }
 };
 
@@ -49,10 +56,9 @@ onMounted(() => {
     gameInstance = new Game(canvasRef.value, store);
     const syncInterval = setInterval(() => {
       if (gameInstance && gameInstance.isRunning) {
-        store.currentLevel = gameInstance.currentLevel; 
         store.updateStats(gameInstance.money, gameInstance.lives, gameInstance.wave);
         if (gameInstance.lives <= 0 && gameInstance.wave > 0 && !store.activePopup) {
-           store.showPopup({ type: 'lose', title: 'ПОРАЖЕНИЕ...', text: 'Враги прорвали оборону! Пони отступили обратно в Кантерлот.' });
+           store.showPopup({ type: 'lose', title: 'ПОРАЖЕНИЕ...', text: 'Враги прорвали оборону!' });
            gameInstance.isRunning = false;
         }
       }
@@ -70,20 +76,14 @@ const selectLevel = (lvl) => {
 
 const handleAction = () => {
   const popupType = store.activePopup?.type;
-  const currentLvl = store.currentLevel;
-
   store.closePopup();
-
   if (popupType === 'win') {
-    // Если это была победа — открываем выбор уровня или грузим следующий
-    if (currentLvl < 6) {
-      selectLevel(currentLvl + 1); // Грузим следующий
-    } else {
-      isLevelModalOpen.value = true; // Если прошли всё — в меню выбора
-    }
+    if (store.currentLevel < 6) selectLevel(store.currentLevel + 1);
+    else isLevelModalOpen.value = true;
   } else if (popupType === 'lose') {
-    // Если проигрыш — переигрываем текущий
-    selectLevel(currentLvl);
+    selectLevel(store.currentLevel);
+  } else {
+    if (gameInstance) gameInstance.isRunning = true;
   }
 };
 
@@ -102,31 +102,23 @@ const currentBgColor = computed(() => {
   <div class="relative w-full h-full flex items-center justify-center overflow-hidden" :style="{ backgroundColor: currentBgColor }">
     
     <div class="relative flex items-center justify-center">
-      <!-- КАНВАС -->
       <canvas ref="canvasRef" @click="gameInstance?.handleCanvasClick($event)" @mousemove="gameInstance?.handleMouseMove($event)" 
               class="block bg-black shadow-2xl rounded-sm"></canvas>
 
-      <!-- СТАТИСТИКА (ОПУЩЕНА НИЖЕ, ЧТОБЫ НЕ ЗАКРЫВАЛ NAVBAR) -->
-      <div class="absolute top-12 left-0 right-0 flex justify-between items-start px-4 pointer-events-none z-50">
-        <div class="bg-[#3c3c58]/95 border-2 border-pink-400 p-3 rounded-xl shadow-lg flex gap-6 mt-4">
-          <div class="flex flex-col">
-            <span class="text-[7px] text-pink-300">ЗОЛОТО</span>
-            <span class="text-white text-xs font-bold">{{ store.money }}</span>
-          </div>
-          <div class="flex flex-col border-l border-white/20 pl-4">
-            <span class="text-[7px] text-red-400">ЖИЗНИ</span>
-            <span class="text-white text-xs font-bold">{{ store.lives }}</span>
-          </div>
-          <div class="flex flex-col border-l border-white/20 pl-4">
-            <span class="text-[7px] text-cyan-400">ВОЛНА</span>
-            <span class="text-white text-xs font-bold">{{ store.wave }}</span>
-          </div>
-        </div>
-
-        <!-- КНОПКА В МЕНЮ ТОЖЕ ОПУЩЕНА -->
-        <button @click="router.push('/')" class="pointer-events-auto mt-4 px-4 py-2 bg-pink-600 hover:bg-pink-500 border-2 border-white/40 text-[8px] text-white rounded-lg shadow-lg transition-all active:translate-y-1">
+          <button @click="exitToMenu" class="pointer-events-auto px-4 py-2 bg-pink-600 hover:bg-pink-500 border-2 border-white/40 text-[8px] text-white rounded-lg shadow-lg transition-all">
           В МЕНЮ
         </button>
+
+      <!-- ПАНЕЛЬ СТАТИСТИКИ (ОПУЩЕНА НИЖЕ) -->
+      <div class="absolute top-20 left-0 right-0 flex justify-between items-start px-4 pointer-events-none z-50">
+        <div class="bg-[#3c3c58]/95 border-2 border-pink-400 p-3 rounded-xl shadow-lg flex gap-4">
+          <div class="flex flex-col"><span class="text-[7px] text-pink-300">ЗОЛОТО</span><span class="text-white text-xs font-bold">{{ store.money }}</span></div>
+          <div class="flex flex-col border-l border-white/20 pl-3"><span class="text-[7px] text-red-400">ЖИЗНИ</span><span class="text-white text-xs font-bold">{{ store.lives }}</span></div>
+          <div class="flex flex-col border-l border-white/20 pl-3"><span class="text-[7px] text-blue-400">ВОЛНА</span><span class="text-white text-xs font-bold">{{ store.wave }}</span></div>
+          <div class="flex flex-col border-l border-white/20 pl-3"><span class="text-[7px] text-cyan-300">ВРЕМЯ</span><span class="text-white text-xs font-bold">{{ store.gameTime }}с</span></div>
+        </div>
+
+        
       </div>
 
       <!-- МАГАЗИН -->
@@ -147,21 +139,19 @@ const currentBgColor = computed(() => {
       </div>
 
       <!-- КНОПКА ВОЛНЫ -->
-      <button @click="startWave" class="absolute bottom-12 right-4 px-8 py-4 bg-pink-600 hover:bg-pink-500 text-white text-[9px] rounded-xl border-b-4 border-pink-800 active:border-b-0 active:translate-y-1 transition-all z-40 shadow-lg">
+      <button @click="startWave" class="absolute bottom-16 right-4 px-8 py-4 bg-pink-600 hover:bg-pink-500 text-white text-[9px] rounded-xl border-b-4 border-pink-800 active:border-b-0 active:translate-y-1 transition-all z-40 shadow-lg">
         В БОЙ!
       </button>
     </div>
 
-    <!-- МОДАЛКА ВЫБОРА УРОВНЯ -->
+    <!-- ВЫБОР КАРТЫ -->
     <Modal v-if="isLevelModalOpen" @close="isLevelModalOpen = false">
       <template #header><h2 class="text-lg text-pink-300 uppercase font-bold italic">Выберите карту</h2></template>
       <div class="grid grid-cols-2 gap-4">
         <button v-for="l in 6" :key="l" @click="selectLevel(l)" 
                 class="flex flex-col items-center p-4 bg-pink-900/20 border-2 border-pink-400 hover:bg-pink-500 rounded-xl transition-all group">
           <span class="text-[10px] text-white font-bold mb-1 uppercase">УРОВЕНЬ {{ l }}</span>
-          <span class="text-[7px] text-pink-300 group-hover:text-white uppercase">
-             {{ l === 4 ? 'Ночь' : l === 6 ? 'Империя' : 'Лес' }}
-          </span>
+          <span class="text-[7px] text-pink-300 group-hover:text-white uppercase">{{ l === 4 ? 'Ночь' : l === 6 ? 'Империя' : 'Лес' }}</span>
         </button>
       </div>
       <template #footer><div></div></template>
@@ -169,38 +159,19 @@ const currentBgColor = computed(() => {
 
     <!-- СЮЖЕТНАЯ МОДАЛКА -->
     <Modal v-if="store.activePopup" @close="handleAction">
-      <template #header>
-        <h2 class="text-[12px] font-bold uppercase text-pink-300 italic tracking-tighter">
-          {{ store.activePopup.title }}
-        </h2>
-      </template>
-      
+      <template #header><h2 class="text-[12px] font-bold uppercase text-pink-300 italic tracking-tighter">{{ store.activePopup.title }}</h2></template>
       <div class="flex flex-col items-center gap-4 text-center">
-        <!-- ЛОГИКА ДЛЯ НЕСКОЛЬКИХ КАРТИНОК -->
-        <div v-if="store.activePopup.imgs" class="flex gap-6 justify-center">
-          <img v-for="image in store.activePopup.imgs" :key="image" 
-               :src="`/images/${image}.png`" 
-               class="w-20 h-20 object-contain animate-bounce" />
+        <div v-if="store.activePopup.imgs" class="flex gap-4">
+          <img v-for="image in store.activePopup.imgs" :key="image" :src="`/images/${image}.png`" class="w-16 h-16 object-contain animate-bounce" />
         </div>
-        
-        <!-- ЛОГИКА ДЛЯ ОДНОЙ КАРТИНКИ -->
-        <img v-else-if="store.activePopup.img" 
-             :src="`/images/${store.activePopup.img}.png`" 
-             class="w-24 h-24 object-contain animate-bounce" />
-
+        <img v-else-if="store.activePopup.img" :src="`/images/${store.activePopup.img}.png`" class="w-20 h-20 object-contain animate-bounce" />
         <p class="text-[9px] leading-loose text-white tracking-tight px-2" v-html="store.activePopup.text"></p>
       </div>
     </Modal>
 
     <!-- ПОДСКАЗКА РАДУГИ -->
-    <div v-if="store.isPlacingPatrol" class="absolute top-32 left-1/2 -translate-x-1/2 bg-pink-600 border-2 border-white p-3 text-[8px] animate-bounce z-[60] rounded-lg shadow-2xl">
+    <div v-if="store.isPlacingPatrol" class="absolute top-40 left-1/2 -translate-x-1/2 bg-pink-600 border-2 border-white p-3 text-[8px] animate-bounce z-[60] rounded-lg shadow-2xl">
       УСТАНОВИТЕ ВТОРУЮ ТОЧКУ!
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Убираем лишние стили, так как используем Tailwind */
-.text-money { color: #10b981; }
-.text-lives { color: #ef4444; }
-</style>
